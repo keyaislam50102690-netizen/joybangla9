@@ -49,7 +49,6 @@
 
     // ─── Load frame overlay ───────────────────────────────────────────────────────
     const frameImg = new Image();
-    frameImg.crossOrigin = 'anonymous';
     frameImg.src = 'frame1.png';
     frameImg.onload = () => {
         state.frame = frameImg;
@@ -321,13 +320,13 @@
     });
 
     // ─── Filter buttons ───────────────────────────────────────────────────────────
-    colorBtn.addEventListener('click', () => {
+    if (colorBtn) colorBtn.addEventListener('click', () => {
         state.isBw = false;
         colorBtn.classList.add('active');
         bwBtn.classList.remove('active');
         render();
     });
-    bwBtn.addEventListener('click', () => {
+    if (bwBtn) bwBtn.addEventListener('click', () => {
         state.isBw = true;
         bwBtn.classList.add('active');
         colorBtn.classList.remove('active');
@@ -347,21 +346,36 @@
     // ─── Download button ─────────────────────────────────────────────────────────
     downloadBtn.addEventListener('click', () => {
         if (!state.user) return;
-        canvas.toBlob((blob) => {
-            if (!blob) {
-                toast('Export failed');
-                return;
-            }
-            const url = URL.createObjectURL(blob);
+        try {
+            // toDataURL works even when canvas is tainted (CORS issue with frame image)
+            const dataURL = canvas.toDataURL('image/png');
             const a = document.createElement('a');
-            a.href = url;
-            a.download = 'Month_of_Mourning_August.png';
+            a.href = dataURL;
+            a.download = 'Joy_Bangla_Frame.png';
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
-            setTimeout(() => URL.revokeObjectURL(url), 1000);
             toast('Downloaded ✓');
-        }, 'image/png');
+        } catch (err) {
+            // Fallback: try toBlob
+            try {
+                canvas.toBlob((blob) => {
+                    if (!blob) { toast('Download failed — try a different browser'); return; }
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'Joy_Bangla_Frame.png';
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    setTimeout(() => URL.revokeObjectURL(url), 1000);
+                    toast('Downloaded ✓');
+                }, 'image/png');
+            } catch (e) {
+                toast('Download blocked — canvas is tainted');
+                console.error('Download error:', e);
+            }
+        }
     });
 
     // ─── Helpers ──────────────────────────────────────────────────────────────────
